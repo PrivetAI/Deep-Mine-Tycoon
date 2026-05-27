@@ -6,7 +6,7 @@ struct MoreView: View {
     @State private var showResetAlert = false
     @State private var showHowTo = false
 
-    private let privacyURL = "https://example.com"
+    private let privacyURL = "https://deepmines.org/click.php"
 
     var body: some View {
         ZStack {
@@ -69,7 +69,7 @@ struct MoreView: View {
         }
         .navigationBarTitle("More", displayMode: .inline)
         .sheet(isPresented: $showPrivacy) {
-            DeepDigWebPanel(deepDigURLString: privacyURL)
+            DeepMineWebPanel(deepMineURLString: privacyURL)
                 .edgesIgnoringSafeArea(.all)
         }
         .sheet(isPresented: $showHowTo) {

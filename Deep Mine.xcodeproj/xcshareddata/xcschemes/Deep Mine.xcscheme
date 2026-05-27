@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F1000003000000000000001"
-               BuildableName = "Deep Dig Mine.app"
-               BlueprintName = "Deep Dig Mine"
-               ReferencedContainer = "container:Deep Dig Mine.xcodeproj">
+               BuildableName = "Deep Mine.app"
+               BlueprintName = "Deep Mine"
+               ReferencedContainer = "container:Deep Mine.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F1000003000000000000001"
-            BuildableName = "Deep Dig Mine.app"
-            BlueprintName = "Deep Dig Mine"
-            ReferencedContainer = "container:Deep Dig Mine.xcodeproj">
+            BuildableName = "Deep Mine.app"
+            BlueprintName = "Deep Mine"
+            ReferencedContainer = "container:Deep Mine.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F1000003000000000000001"
-            BuildableName = "Deep Dig Mine.app"
-            BlueprintName = "Deep Dig Mine"
-            ReferencedContainer = "container:Deep Dig Mine.xcodeproj">
+            BuildableName = "Deep Mine.app"
+            BlueprintName = "Deep Mine"
+            ReferencedContainer = "container:Deep Mine.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

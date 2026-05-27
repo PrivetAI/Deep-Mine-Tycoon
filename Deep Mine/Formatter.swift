@@ -64,13 +64,29 @@ enum DDMFormat {
             n /= 1000
             tier += 1
         }
-        if tier < smallSuffixes.count - 1 || (tier == smallSuffixes.count - 1 && n < 1000) {
+        // If trim() would round n up to 1000 (e.g. 999.5 -> "1000"), advance to the next tier
+        // to avoid displaying e.g. "1000K" instead of "1.00M".
+        if n >= 999.5 && tier < 4 {
+            n /= 1000
+            tier += 1
+        }
+        if tier < smallSuffixes.count - 1 || (tier == smallSuffixes.count - 1 && n < 999.5) {
             return trim(n) + smallSuffixes[tier]
         }
 
         // Beyond T: use letter pairs aa, ab, ...
         // continue dividing
+        if n >= 999.5 {
+            n /= 1000
+            tier += 1
+        }
         while n >= 1000 {
+            n /= 1000
+            tier += 1
+        }
+        // One more normalization: floating-point near-1000 values (e.g. 999.9999…)
+        // round to "1000" in trim(); advance tier to keep the display clean.
+        if n >= 999.5 {
             n /= 1000
             tier += 1
         }

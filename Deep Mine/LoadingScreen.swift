@@ -1,7 +1,7 @@
 import SwiftUI
 
 // Splash shown while the launch check runs.
-struct DeepDigLoadingScreen: View {
+struct DeepMineLoadingScreen: View {
     @State private var swing = false
     @State private var glow = false
 
@@ -24,7 +24,7 @@ struct DeepDigLoadingScreen: View {
                     DDMPickaxeShape(color: DDMPalette.amber, handle: DDMPalette.dirtLight, size: 88)
                         .rotationEffect(.degrees(swing ? 18 : -18), anchor: .bottomLeading)
                 }
-                Text("DEEP DIG MINE")
+                Text("DEEP MINE")
                     .font(.system(size: 18, weight: .heavy, design: .rounded))
                     .tracking(2)
                     .foregroundColor(DDMPalette.textOnDark)

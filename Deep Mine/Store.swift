@@ -602,6 +602,9 @@ final class DDMStore: ObservableObject {
         // re-credit offline progress on resume
         lastTick = Date()
         creditOfflineEarnings()
+        // Immediately persist the updated lastActive so a subsequent crash or kill
+        // cannot re-grant the same offline window on the next launch.
+        persist()
     }
 }
 

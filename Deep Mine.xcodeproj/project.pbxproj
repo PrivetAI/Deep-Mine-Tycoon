@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A1000003000000000000001 /* Deep_Dig_MineApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000003000000000000001 /* Deep_Dig_MineApp.swift */; };
+		A1000003000000000000001 /* Deep_MineApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000003000000000000001 /* Deep_MineApp.swift */; };
 		A1000003000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000003000000000000002 /* ContentView.swift */; };
 		A1000003000000000000003 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000003000000000000003 /* RootTabView.swift */; };
 		A1000003000000000000004 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000003000000000000004 /* Theme.swift */; };
@@ -28,7 +28,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		B1000003000000000000001 /* Deep_Dig_MineApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Deep_Dig_MineApp.swift; sourceTree = "<group>"; };
+		B1000003000000000000001 /* Deep_MineApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Deep_MineApp.swift; sourceTree = "<group>"; };
 		B1000003000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B1000003000000000000003 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		B1000003000000000000004 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -47,7 +47,7 @@
 		B1000003000000000000017 /* LoadingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingScreen.swift; sourceTree = "<group>"; };
 		B1000003000000000000018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000003000000000000019 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		C1000003000000000000001 /* Deep Dig Mine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Deep Dig Mine.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C1000003000000000000001 /* Deep Mine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Deep Mine.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,15 +64,15 @@
 		E1000003000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				E1000003000000000000002 /* Deep Dig Mine */,
+				E1000003000000000000002 /* Deep Mine */,
 				E1000003000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		E1000003000000000000002 /* Deep Dig Mine */ = {
+		E1000003000000000000002 /* Deep Mine */ = {
 			isa = PBXGroup;
 			children = (
-				B1000003000000000000001 /* Deep_Dig_MineApp.swift */,
+				B1000003000000000000001 /* Deep_MineApp.swift */,
 				B1000003000000000000002 /* ContentView.swift */,
 				B1000003000000000000003 /* RootTabView.swift */,
 				B1000003000000000000004 /* Theme.swift */,
@@ -92,13 +92,13 @@
 				B1000003000000000000018 /* Assets.xcassets */,
 				B1000003000000000000019 /* Info.plist */,
 			);
-			path = "Deep Dig Mine";
+			path = "Deep Mine";
 			sourceTree = "<group>";
 		};
 		E1000003000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				C1000003000000000000001 /* Deep Dig Mine.app */,
+				C1000003000000000000001 /* Deep Mine.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -106,9 +106,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		F1000003000000000000001 /* Deep Dig Mine */ = {
+		F1000003000000000000001 /* Deep Mine */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 11000003000000000000001 /* Build configuration list for PBXNativeTarget "Deep Dig Mine" */;
+			buildConfigurationList = 11000003000000000000001 /* Build configuration list for PBXNativeTarget "Deep Mine" */;
 			buildPhases = (
 				G1000003000000000000001 /* Sources */,
 				D1000003000000000000001 /* Frameworks */,
@@ -118,9 +118,9 @@
 			);
 			dependencies = (
 			);
-			name = "Deep Dig Mine";
-			productName = "Deep Dig Mine";
-			productReference = C1000003000000000000001 /* Deep Dig Mine.app */;
+			name = "Deep Mine";
+			productName = "Deep Mine";
+			productReference = C1000003000000000000001 /* Deep Mine.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -138,7 +138,7 @@
 					};
 				};
 			};
-			buildConfigurationList = J1000003000000000000001 /* Build configuration list for PBXProject "Deep Dig Mine" */;
+			buildConfigurationList = J1000003000000000000001 /* Build configuration list for PBXProject "Deep Mine" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -151,7 +151,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				F1000003000000000000001 /* Deep Dig Mine */,
+				F1000003000000000000001 /* Deep Mine */,
 			);
 		};
 /* End PBXProject section */
@@ -172,7 +172,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1000003000000000000001 /* Deep_Dig_MineApp.swift in Sources */,
+				A1000003000000000000001 /* Deep_MineApp.swift in Sources */,
 				A1000003000000000000002 /* ContentView.swift in Sources */,
 				A1000003000000000000003 /* RootTabView.swift in Sources */,
 				A1000003000000000000004 /* Theme.swift in Sources */,
@@ -320,7 +320,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Deep Dig Mine/Info.plist";
+				INFOPLIST_FILE = "Deep Mine/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -328,7 +328,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.deepdigmine.deepdigmine;
+				PRODUCT_BUNDLE_IDENTIFIER = com.deepmine.deepmine;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -352,7 +352,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "Deep Dig Mine/Info.plist";
+				INFOPLIST_FILE = "Deep Mine/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -360,7 +360,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.deepdigmine.deepdigmine;
+				PRODUCT_BUNDLE_IDENTIFIER = com.deepmine.deepmine;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -376,7 +376,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		J1000003000000000000001 /* Build configuration list for PBXProject "Deep Dig Mine" */ = {
+		J1000003000000000000001 /* Build configuration list for PBXProject "Deep Mine" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				K1000003000000000000001 /* Debug */,
@@ -385,7 +385,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		11000003000000000000001 /* Build configuration list for PBXNativeTarget "Deep Dig Mine" */ = {
+		11000003000000000000001 /* Build configuration list for PBXNativeTarget "Deep Mine" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				L1000003000000000000001 /* Debug */,

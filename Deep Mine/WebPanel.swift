@@ -1,9 +1,9 @@
 import SwiftUI
 import WebKit
 
-// Fullscreen / sheet WebView wrapper. Renamed per-app: deepDig* prefix.
-struct DeepDigWebPanel: UIViewRepresentable {
-    let deepDigURLString: String
+// Fullscreen / sheet WebView wrapper. Renamed per-app: deepMine* prefix.
+struct DeepMineWebPanel: UIViewRepresentable {
+    let deepMineURLString: String
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -12,7 +12,7 @@ struct DeepDigWebPanel: UIViewRepresentable {
         webView.scrollView.contentInsetAdjustmentBehavior = .always
         webView.isOpaque = true
         webView.backgroundColor = UIColor(DDMPalette.background)
-        if let url = URL(string: deepDigURLString) {
+        if let url = URL(string: deepMineURLString) {
             webView.load(URLRequest(url: url))
         }
         return webView
