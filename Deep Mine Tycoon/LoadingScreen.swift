@@ -24,7 +24,7 @@ struct DeepMineLoadingScreen: View {
                     DDMPickaxeShape(color: DDMPalette.amber, handle: DDMPalette.dirtLight, size: 88)
                         .rotationEffect(.degrees(swing ? 18 : -18), anchor: .bottomLeading)
                 }
-                Text("DEEP MINE")
+                Text("DEEP MINE TYCOON")
                     .font(.system(size: 18, weight: .heavy, design: .rounded))
                     .tracking(2)
                     .foregroundColor(DDMPalette.textOnDark)
