@@ -14,7 +14,8 @@ struct DeepMineApp: App {
                 if let ready = deepMineLinkReady {
                     if ready {
                         DeepMineWebPanel(deepMineURLString: deepMineSourceLink)
-                            .edgesIgnoringSafeArea(.all)
+                            .edgesIgnoringSafeArea(.bottom)
+                            .background(Color.black.ignoresSafeArea())
                     } else {
                         ContentView()
                             .environmentObject(store)
