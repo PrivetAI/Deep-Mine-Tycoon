@@ -132,6 +132,10 @@ struct UpgradeRow: View {
         case .elevator:
             DDMChevron(color: DDMPalette.accentDeep, size: 26)
                 .rotationEffect(.degrees(90))
+        case .dynamite:
+            DDMBurstShape()
+                .fill(DDMPalette.danger)
+                .frame(width: 26, height: 26)
         }
     }
 
@@ -140,7 +144,7 @@ struct UpgradeRow: View {
         case .pickaxe:
             return "Tap damage: \(DDMFormat.number(store.tapDamage))"
         case .drillCount:
-            return "Drills: \(level + store.globalLevel(.autoStart))"
+            return "Drills: \(level + store.globalLevel(.autoStart) * 2)"
         case .drillSpeed:
             return "Auto dmg/s: \(DDMFormat.number(store.autoDPS))"
         case .oreValue:
@@ -151,6 +155,8 @@ struct UpgradeRow: View {
             return "Depth/clear: +\(store.elevatorBonus) m"
         case .refiner:
             return "Refining bonus active"
+        case .dynamite:
+            return level > 0 ? "Burst dmg: +\(DDMFormat.number(store.burstBonusDamage))" : "No burst charge yet"
         }
     }
 }

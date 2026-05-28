@@ -47,17 +47,19 @@ struct CollapseView: View {
             Text("\(store.save.gems) Gems")
                 .font(.system(size: 22, weight: .heavy, design: .rounded))
                 .foregroundColor(DDMPalette.textPrimary)
-            Text("Each gem grants +2% global gold & ore yield.")
+            Text("Gems give a strong global multiplier to BOTH gold and mining damage. Each collapse makes re-descent much faster.")
                 .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundColor(DDMPalette.textSecondary)
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 0) {
-                infoCol("Current Mult", String(format: "x%.2f", store.yieldMultiplier))
+                infoCol("Gold Mult", String(format: "x%.2f", store.yieldMultiplier))
+                divider
+                infoCol("Dmg Mult", String(format: "x%.2f", store.damageMultiplier))
                 divider
                 infoCol("Run Depth", DDMFormat.depth(store.save.runMaxDepth))
                 divider
-                infoCol("Ore Sold", DDMFormat.number(store.save.lifetimeOreSold))
+                infoCol("New Ore", DDMFormat.number(max(0, store.save.lifetimeOreSold - store.save.oreSoldClaimed)))
             }
             .padding(.vertical, 6)
 

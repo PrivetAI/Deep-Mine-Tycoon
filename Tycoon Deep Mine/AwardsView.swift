@@ -47,6 +47,10 @@ struct AwardsView: View {
                 divider
                 statRow("Collapses", "\(store.save.totalCollapses)")
                 divider
+                statRow("Bedrock Gates", "\(store.save.bossesDefeated)")
+                divider
+                statRow("Geodes Found", "\(store.save.treasuresFound)")
+                divider
                 statRow("Total Taps", "\(store.save.totalTaps)")
             }
             .padding(.horizontal, 14)

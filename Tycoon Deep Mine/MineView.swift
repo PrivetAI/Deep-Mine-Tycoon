@@ -68,18 +68,8 @@ struct MineView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             VStack {
-                // depth banner
-                HStack {
-                    Text(DDMFormat.depth(store.save.depth))
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
-                        .foregroundColor(DDMPalette.textOnDark)
-                    Spacer()
-                    Text("Max " + DDMFormat.depth(store.save.maxDepth))
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundColor(DDMPalette.textOnDarkMuted)
-                }
-                .padding(.horizontal, 18)
-                .padding(.top, 14)
+                // depth + zone banner
+                zoneBanner
 
                 Spacer()
 
@@ -113,32 +103,105 @@ struct MineView: View {
         }
     }
 
+    // Zone banner: depth + zone name + progress toward the next boundary.
+    private var zoneBanner: some View {
+        let zone = DDMZone.zone(at: store.save.depth)
+        let span = max(1, (zone.endDepth == Int.max ? zone.startDepth + 1000 : zone.endDepth) - zone.startDepth)
+        let into = store.save.depth - zone.startDepth
+        let prog = zone.endDepth == Int.max ? 1.0 : max(0, min(1, Double(into) / Double(span)))
+        return VStack(spacing: 6) {
+            HStack {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(DDMFormat.depth(store.save.depth))
+                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundColor(DDMPalette.textOnDark)
+                    Text(zone.name.uppercased())
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .tracking(1.0)
+                        .foregroundColor(zone.accent)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text("Max " + DDMFormat.depth(store.save.maxDepth))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(DDMPalette.textOnDarkMuted)
+                    if let bd = zone.bossDepth {
+                        Text("Gate at \(bd) m")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundColor(DDMPalette.textOnDarkMuted)
+                    }
+                }
+            }
+            if zone.endDepth != Int.max {
+                DDMProgressBar(progress: prog, fill: zone.accent, track: Color.black.opacity(0.3), height: 5)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 14)
+    }
+
     private func blockFace(block: DDMBlock, hpFrac: Double) -> some View {
-        VStack(spacing: 12) {
+        let fillColors: [Color]
+        let strokeColor: Color
+        switch block.kind {
+        case .boss:
+            fillColors = [Color(red: 0.32, green: 0.30, blue: 0.30),
+                          Color(red: 0.20, green: 0.18, blue: 0.18),
+                          Color(red: 0.12, green: 0.10, blue: 0.10)]
+            strokeColor = DDMPalette.danger
+        case .treasure:
+            fillColors = [DDMPalette.amber, DDMPalette.amberDeep, DDMPalette.goldDeep]
+            strokeColor = DDMPalette.goldLight
+        case .normal:
+            fillColors = [DDMPalette.rockLight, DDMPalette.rock, DDMPalette.rockDark]
+            strokeColor = DDMPalette.rockDark
+        }
+        return VStack(spacing: 12) {
             ZStack {
                 // the rock block
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .fill(
-                        LinearGradient(colors: [DDMPalette.rockLight, DDMPalette.rock, DDMPalette.rockDark],
+                        LinearGradient(colors: fillColors,
                                        startPoint: .topLeading, endPoint: .bottomTrailing)
                     )
                     .frame(width: 150, height: 150)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(DDMPalette.rockDark, lineWidth: 3)
+                            .stroke(strokeColor, lineWidth: block.kind == .normal ? 3 : 4)
                     )
                 // crack overlay as HP drops
                 DDMCracksShape(intensity: 1 - hpFrac)
                     .stroke(Color.black.opacity(0.35), style: StrokeStyle(lineWidth: 2, lineCap: .round))
                     .frame(width: 150, height: 150)
-                // ore vein
-                if let ore = block.oreType {
-                    DDMOreChunk(color: ore.color, size: 64)
+                // content emblem
+                switch block.kind {
+                case .boss:
+                    DDMBossView(size: 78)
+                case .treasure:
+                    DDMChestView(size: 72)
+                case .normal:
+                    if let ore = block.oreType {
+                        DDMOreChunk(color: ore.color, size: 64)
+                    }
                 }
+            }
+            // boss / treasure label
+            if block.isBoss {
+                Text("BEDROCK GATE")
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .tracking(1.2)
+                    .foregroundColor(DDMPalette.danger)
+            } else if block.isTreasure {
+                Text("GEODE")
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .tracking(1.2)
+                    .foregroundColor(DDMPalette.goldLight)
             }
             // HP bar
             VStack(spacing: 4) {
-                DDMProgressBar(progress: hpFrac, fill: DDMPalette.amber, track: DDMPalette.rockDark, height: 10)
+                DDMProgressBar(progress: hpFrac,
+                               fill: block.isBoss ? DDMPalette.danger : DDMPalette.amber,
+                               track: DDMPalette.rockDark, height: 10)
                     .frame(width: 180)
                 Text("\(DDMFormat.number(block.hp)) / \(DDMFormat.number(block.maxHP)) HP")
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -260,14 +323,15 @@ struct DDMStrataView: View {
     let screenSize: CGSize
 
     var body: some View {
+        let zone = DDMZone.zone(at: depth)
         // Use parent-passed screenSize for camera math, not the Canvas's own size.
-        Canvas { context, _ in
+        return Canvas { context, _ in
             let w = screenSize.width
             let h = max(220, screenSize.height * 0.5)
             let rect = CGRect(x: 0, y: 0, width: w, height: h)
 
-            // base fill
-            context.fill(Path(rect), with: .color(DDMPalette.dirtDark))
+            // base fill — zone tinted
+            context.fill(Path(rect), with: .color(zone.baseFill))
 
             // horizontal strata bands scrolling with depth
             let bandHeight: CGFloat = 46
@@ -277,7 +341,7 @@ struct DDMStrataView: View {
             var idx = Int(scroll / bandHeight)
             while y < h + bandHeight {
                 let band = CGRect(x: 0, y: y, width: w, height: bandHeight)
-                let shade = idx % 2 == 0 ? DDMPalette.dirt : DDMPalette.dirtDark
+                let shade = idx % 2 == 0 ? zone.bandA : zone.bandB
                 context.fill(Path(band), with: .color(shade))
 
                 // speckle pebbles seeded by band index — deterministic
@@ -288,19 +352,19 @@ struct DDMStrataView: View {
                     let py = Double(y) + rng.nextDouble() * Double(bandHeight)
                     let r = 2.0 + rng.nextDouble() * 4.0
                     let pebRect = CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)
-                    let pebColor = rng.chance(0.3) ? DDMPalette.rockLight : DDMPalette.rockDark
-                    context.fill(Path(ellipseIn: pebRect), with: .color(pebColor.opacity(0.5)))
+                    let pebColor = rng.chance(0.3) ? zone.accent : zone.bandB
+                    context.fill(Path(ellipseIn: pebRect), with: .color(pebColor.opacity(0.45)))
                 }
                 y += bandHeight
                 idx += 1
             }
 
-            // amber lamp glow at top
+            // zone-accent lamp glow at top
             let glowRect = CGRect(x: w * 0.5 - 80, y: -40, width: 160, height: 120)
-            context.fill(Path(ellipseIn: glowRect), with: .color(DDMPalette.amberGlow.opacity(0.10)))
+            context.fill(Path(ellipseIn: glowRect), with: .color(zone.accent.opacity(0.14)))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DDMPalette.dirtDark)
+        .background(zone.baseFill)
     }
 }
 

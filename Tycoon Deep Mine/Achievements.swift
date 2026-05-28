@@ -50,6 +50,20 @@ struct DDMAchievement: Identifiable {
         }
     }
 
+    static func bossGoal(_ id: String, _ title: String, _ n: Int) -> DDMAchievement {
+        DDMAchievement(id: id, title: title, detail: "Break \(n) bedrock gate\(n == 1 ? "" : "s").") { s in
+            let p = min(1.0, Double(s.save.bossesDefeated) / Double(n))
+            return (p, s.save.bossesDefeated >= n)
+        }
+    }
+
+    static func treasureGoal(_ id: String, _ title: String, _ n: Int) -> DDMAchievement {
+        DDMAchievement(id: id, title: title, detail: "Crack open \(n) geode\(n == 1 ? "" : "s").") { s in
+            let p = min(1.0, Double(s.save.treasuresFound) / Double(n))
+            return (p, s.save.treasuresFound >= n)
+        }
+    }
+
     static let all: [DDMAchievement] = [
         depthGoal("d_25", "First Descent", 25),
         depthGoal("d_100", "Going Under", 100),
@@ -74,10 +88,20 @@ struct DDMAchievement: Identifiable {
 
         gemGoal("gem_10", "Gem Cutter", 10),
         gemGoal("gem_100", "Gem Hoarder", 100),
+        gemGoal("gem_1000", "Gem Tycoon", 1_000),
 
         oreGoal("o_coal", "Coal Hauler", .coal, 500),
         oreGoal("o_iron", "Iron Veins", .iron, 300),
         oreGoal("o_gold", "Mother Lode", .gold, 200),
-        oreGoal("o_diamond", "Diamond Hands", .diamond, 50)
+        oreGoal("o_diamond", "Diamond Hands", .diamond, 50),
+        oreGoal("o_obsidian", "Heart of Stone", .obsidian, 25),
+
+        bossGoal("b_1", "Gatebreaker", 1),
+        bossGoal("b_5", "Bedrock Bane", 5),
+        bossGoal("b_20", "Wall Crusher", 20),
+
+        treasureGoal("tr_1", "First Find", 1),
+        treasureGoal("tr_25", "Geode Hunter", 25),
+        treasureGoal("tr_100", "Treasure Magnate", 100)
     ]
 }

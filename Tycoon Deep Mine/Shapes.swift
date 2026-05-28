@@ -357,6 +357,111 @@ struct DDMCheck: View {
     }
 }
 
+// MARK: - Burst / explosion (dynamite charge)
+
+struct DDMBurstShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let c = CGPoint(x: rect.midX, y: rect.midY)
+        let outer = min(rect.width, rect.height) / 2
+        let inner = outer * 0.42
+        let spikes = 12
+        for i in 0..<(spikes * 2) {
+            let r = i % 2 == 0 ? outer : inner
+            let angle = (Double(i) * (360.0 / Double(spikes * 2)) - 90.0) * .pi / 180.0
+            let pt = CGPoint(x: c.x + CGFloat(cos(angle)) * r,
+                             y: c.y + CGFloat(sin(angle)) * r)
+            if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+        }
+        p.closeSubpath()
+        return p
+    }
+}
+
+// MARK: - Treasure chest (geode reward)
+
+struct DDMChestShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let w = rect.width, h = rect.height
+        // lid (rounded top)
+        p.move(to: CGPoint(x: w * 0.12, y: h * 0.42))
+        p.addQuadCurve(to: CGPoint(x: w * 0.88, y: h * 0.42),
+                       control: CGPoint(x: w * 0.5, y: h * 0.06))
+        p.addLine(to: CGPoint(x: w * 0.88, y: h * 0.42))
+        // body
+        p.addLine(to: CGPoint(x: w * 0.88, y: h * 0.86))
+        p.addLine(to: CGPoint(x: w * 0.12, y: h * 0.86))
+        p.closeSubpath()
+        return p
+    }
+}
+
+struct DDMChestView: View {
+    var size: CGFloat
+    var body: some View {
+        ZStack {
+            DDMChestShape()
+                .fill(
+                    LinearGradient(colors: [DDMPalette.amber, DDMPalette.amberDeep],
+                                   startPoint: .top, endPoint: .bottom)
+                )
+            DDMChestShape()
+                .stroke(DDMPalette.goldDeep, lineWidth: size * 0.04)
+            // band
+            Rectangle()
+                .fill(DDMPalette.goldDeep)
+                .frame(width: size, height: size * 0.07)
+                .offset(y: size * 0.06)
+            // lock
+            RoundedRectangle(cornerRadius: size * 0.03, style: .continuous)
+                .fill(DDMPalette.goldLight)
+                .frame(width: size * 0.16, height: size * 0.18)
+                .offset(y: size * 0.08)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Skull (bedrock boss)
+
+struct DDMSkullShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let w = rect.width, h = rect.height
+        // cranium
+        p.addEllipse(in: CGRect(x: w * 0.16, y: h * 0.08, width: w * 0.68, height: h * 0.62))
+        // jaw
+        p.move(to: CGPoint(x: w * 0.34, y: h * 0.60))
+        p.addLine(to: CGPoint(x: w * 0.34, y: h * 0.82))
+        p.addLine(to: CGPoint(x: w * 0.66, y: h * 0.82))
+        p.addLine(to: CGPoint(x: w * 0.66, y: h * 0.60))
+        p.closeSubpath()
+        return p
+    }
+}
+
+struct DDMBossView: View {
+    var size: CGFloat
+    var body: some View {
+        ZStack {
+            DDMSkullShape()
+                .fill(
+                    LinearGradient(colors: [DDMPalette.textOnDark, DDMPalette.locked],
+                                   startPoint: .top, endPoint: .bottom)
+                )
+            // eye sockets
+            Circle().fill(Color.black.opacity(0.75))
+                .frame(width: size * 0.16, height: size * 0.16)
+                .offset(x: -size * 0.13, y: -size * 0.04)
+            Circle().fill(Color.black.opacity(0.75))
+                .frame(width: size * 0.16, height: size * 0.16)
+                .offset(x: size * 0.13, y: -size * 0.04)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 // MARK: - Progress bar
 
 struct DDMProgressBar: View {

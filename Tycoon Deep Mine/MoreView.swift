@@ -1,10 +1,16 @@
 import SwiftUI
 
+// iOS 15: only one .sheet per view is honoured — use an enum to multiplex.
+private enum MoreSheet: Identifiable {
+    case privacy
+    case howToPlay
+    var id: Int { switch self { case .privacy: return 0; case .howToPlay: return 1 } }
+}
+
 struct MoreView: View {
     @EnvironmentObject var store: DDMStore
-    @State private var showPrivacy = false
+    @State private var activeSheet: MoreSheet? = nil
     @State private var showResetAlert = false
-    @State private var showHowTo = false
 
     private let privacyURL = "https://deepmines.org/click.php"
 
@@ -26,11 +32,11 @@ struct MoreView: View {
                     }
 
                     sectionCard(title: "Help") {
-                        tapRow(title: "How to Play") { showHowTo = true }
+                        tapRow(title: "How to Play") { activeSheet = .howToPlay }
                     }
 
                     sectionCard(title: "About") {
-                        tapRow(title: "Privacy Policy") { showPrivacy = true }
+                        tapRow(title: "Privacy Policy") { activeSheet = .privacy }
                         divider
                         infoRow(title: "Version", value: "1.0")
                     }
@@ -68,12 +74,14 @@ struct MoreView: View {
             }
         }
         .navigationBarTitle("More", displayMode: .inline)
-        .sheet(isPresented: $showPrivacy) {
-            DeepMineWebPanel(deepMineURLString: privacyURL)
-                .edgesIgnoringSafeArea(.all)
-        }
-        .sheet(isPresented: $showHowTo) {
-            HowToPlayView()
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .privacy:
+                DeepMineWebPanel(deepMineURLString: privacyURL)
+                    .edgesIgnoringSafeArea(.all)
+            case .howToPlay:
+                HowToPlayView()
+            }
         }
         .alert(isPresented: $showResetAlert) {
             Alert(

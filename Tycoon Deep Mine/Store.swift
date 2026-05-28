@@ -42,44 +42,83 @@ final class DDMStore: ObservableObject {
         save.globals[kind.rawValue] ?? 0
     }
 
-    // Permanent yield multiplier from gems + global yield boost.
-    var yieldMultiplier: Double {
-        let gemBonus = 1.0 + Double(save.gems) * 0.02              // each gem +2%
-        let boost = 1.0 + Double(globalLevel(.yieldBoost)) * 0.08  // +8% per level
-        let m = gemBonus * boost
+    // --- Gem prestige multiplier (the core of the loop) ---
+    // Gems give a STRONG global multiplier to BOTH damage and gold so each collapse
+    // makes re-descent clearly faster. Tuned for roughly 2-4x per healthy cycle.
+    // Curve: 1 + gems^0.85 * 0.55  (diminishing but always meaningful).
+    var gemMultiplier: Double {
+        let g = Double(max(0, save.gems))
+        if g <= 0 { return 1.0 }
+        let m = 1.0 + pow(g, 0.85) * 0.55
         return m.isFinite ? m : 1.0
     }
 
-    // Tap (pickaxe) damage.
+    // Permanent yield multiplier from gems + global yield boost (applies to GOLD).
+    var yieldMultiplier: Double {
+        let boost = 1.0 + Double(globalLevel(.yieldBoost)) * 0.15  // +15% per level
+        let m = gemMultiplier * boost
+        return m.isFinite ? m : 1.0
+    }
+
+    // Damage multiplier from gems + yield boost (applies to DAMAGE — tap & auto).
+    var damageMultiplier: Double {
+        let boost = 1.0 + Double(globalLevel(.yieldBoost)) * 0.15
+        let m = gemMultiplier * boost
+        return m.isFinite ? m : 1.0
+    }
+
+    // Multiplicative "milestone" bonus: x2 every 25 levels (classic-clicker style).
+    private func milestoneScale(_ level: Int) -> Double {
+        let steps = level / 25
+        return pow(2.0, Double(steps))
+    }
+
+    // Tap (pickaxe) damage. Base per-level term * x2-every-25 * gem damage mult.
     var tapDamage: Double {
         let lvl = upgradeLevel(.pickaxe)
-        let base = 1.0 + Double(lvl) * 1.8 + pow(Double(lvl), 1.35) * 0.6
-        let d = base * yieldDamageScale
+        let base = 1.0 + Double(lvl) * 2.0
+        let d = base * milestoneScale(lvl) * damageMultiplier
         return d.isFinite ? max(1, d) : 1
     }
 
-    // Damage scaling shouldn't get gold yield multiplier (that's for gold), but
-    // depth gating makes deeper rock tough; give a mild gem-based damage assist.
-    private var yieldDamageScale: Double {
-        return 1.0 + Double(save.gems) * 0.01
+    // Bonus tap damage applied on top vs boss/bedrock blocks (dynamite charge).
+    var burstBonusDamage: Double {
+        let lvl = upgradeLevel(.dynamite)
+        if lvl <= 0 { return 0 }
+        let base = Double(lvl) * 8.0
+        let d = base * milestoneScale(lvl) * damageMultiplier
+        return d.isFinite ? max(0, d) : 0
     }
 
-    // Auto drill damage per second.
+    // Auto drill damage per second. Drill count & speed each carry x2-every-25 milestones.
     var autoDPS: Double {
-        let count = Double(upgradeLevel(.drillCount)) + Double(globalLevel(.autoStart))
+        let countLvl = upgradeLevel(.drillCount)
+        let count = Double(countLvl) + Double(globalLevel(.autoStart)) * 2.0
         if count <= 0 { return 0 }
-        let perDrill = 0.8 + Double(upgradeLevel(.pickaxe)) * 0.25
-        let speed = 1.0 + Double(upgradeLevel(.drillSpeed)) * 0.35
-        let dps = count * perDrill * speed * yieldDamageScale
+        let speedLvl = upgradeLevel(.drillSpeed)
+        let perDrill = 1.2 * milestoneScale(countLvl)
+        let speed = (1.0 + Double(speedLvl) * 0.30) * milestoneScale(speedLvl)
+        let dps = count * perDrill * speed * damageMultiplier
         return dps.isFinite ? max(0, dps) : 0
     }
 
     // Ore sell value multiplier.
     var oreValueMultiplier: Double {
-        let grader = 1.0 + Double(upgradeLevel(.oreValue)) * 0.20
-        let refiner = 1.0 + Double(upgradeLevel(.refiner)) * 0.15
+        let grader = 1.0 + Double(upgradeLevel(.oreValue)) * 0.25
+        let refiner = 1.0 + Double(upgradeLevel(.refiner)) * 0.20
         let m = grader * refiner * yieldMultiplier
         return m.isFinite ? m : 1.0
+    }
+
+    // Ore drop amount multiplier (ore magnet global).
+    var oreAmountMultiplier: Double {
+        1.0 + Double(globalLevel(.oreMagnet)) * 0.20
+    }
+
+    // Treasure / geode find chance multiplier (prospector's eye). Extra finds on top
+    // of the deterministic base geodes.
+    var treasureLuckBonus: Double {
+        Double(globalLevel(.treasureLuck)) * 0.25
     }
 
     // Cart auto-collect & auto-sell rate (ore units / second processed). 0 = manual only.
@@ -100,6 +139,11 @@ final class DDMStore: ObservableObject {
     // Critical tap chance.
     var critChance: Double {
         min(0.75, Double(globalLevel(.tapCrit)) * 0.03)
+    }
+
+    // Critical tap multiplier (base 5x, +1x per Detonator level).
+    var critMultiplier: Double {
+        5.0 + Double(globalLevel(.critPower)) * 1.0
     }
 
     var offlineCapSeconds: Double {
@@ -142,11 +186,17 @@ final class DDMStore: ObservableObject {
     func tapDig() {
         save.totalTaps += 1
         var dmg = tapDamage
+        // Dynamite burst lands extra hard on bedrock bosses (and helps everywhere).
+        if currentBlock.isBoss {
+            dmg += burstBonusDamage * 3.0
+        } else {
+            dmg += burstBonusDamage
+        }
         var crit = false
         if critChance > 0 {
             var rng = DDMRandom(seed: ddmSeed(save.totalTaps, save.depth &+ 7))
             if rng.chance(critChance) {
-                dmg *= 5.0
+                dmg *= critMultiplier
                 crit = true
             }
         }
@@ -179,25 +229,78 @@ final class DDMStore: ObservableObject {
     }
 
     private func clearBlock(_ block: DDMBlock) {
-        // Award contents
-        let rubble = block.rubbleGold * yieldMultiplier
-        addGold(rubble)
-        if let ore = block.oreType, block.oreAmount > 0 {
-            mineOre(ore, amount: block.oreAmount)
-        }
-        // Advance depth (1 m base + elevator bonus)
+        awardBlockContents(block)
+        // Advance depth, but never leap over a boss-gate depth.
         let advance = 1 + elevatorBonus
-        save.depth += advance
+        save.depth = nextDepth(from: save.depth, desiredAdvance: advance)
         if save.depth > save.runMaxDepth { save.runMaxDepth = save.depth }
         if save.depth > save.maxDepth { save.maxDepth = save.depth }
+        checkMilestones()
         rebuildCurrentBlock()
     }
 
+    // Return the depth we should land on after clearing a block at `from`.
+    // If the intended advance would jump over one or more boss-gate depths, stop at
+    // the first one so the gate is always encountered and must be defeated.
+    private func nextDepth(from current: Int, desiredAdvance: Int) -> Int {
+        let target = current + desiredAdvance
+        // Find the nearest boss depth in the open-closed interval (current, target].
+        for z in DDMZone.all where z.endDepth != Int.max {
+            let bd = z.endDepth - 1   // boss-gate depth for this zone
+            if bd > current && bd <= target {
+                return bd  // land exactly on the gate
+            }
+        }
+        return target
+    }
+
     private func mineOre(_ ore: DDMOre, amount: Double) {
+        let amt = amount * oreAmountMultiplier
         let cur = save.oreCounts[ore.rawValue] ?? 0
-        save.oreCounts[ore.rawValue] = cur + amount
+        save.oreCounts[ore.rawValue] = cur + amt
         let mined = save.oreMinedTotals[ore.rawValue] ?? 0
-        save.oreMinedTotals[ore.rawValue] = mined + amount
+        save.oreMinedTotals[ore.rawValue] = mined + amt
+    }
+
+    // Award a treasure/boss block's bonus contents. Treasure gem finds can be boosted
+    // by Prospector's Eye (extra deterministic rolls).
+    private func awardBonus(_ block: DDMBlock) {
+        guard block.kind != .normal else { return }
+        if block.bonusGold > 0 {
+            addGold(block.bonusGold * yieldMultiplier)
+        }
+        var gems = block.gemReward
+        if block.isTreasure && treasureLuckBonus > 0 {
+            // each 1.0 of luck bonus gives one extra chance at a bonus gem
+            var rng = DDMRandom(seed: ddmSeed(block.depth, 0x6E37))
+            var luck = treasureLuckBonus
+            while luck > 0 {
+                if rng.chance(min(1.0, luck)) { gems += 1 }
+                luck -= 1.0
+            }
+        }
+        if gems > 0 {
+            save.gems += gems
+        }
+        if let bo = block.bonusOre, block.bonusOreAmount > 0 {
+            mineOre(bo, amount: block.bonusOreAmount)
+        }
+        if block.isBoss {
+            save.bossesDefeated += 1
+        } else if block.isTreasure {
+            save.treasuresFound += 1
+        }
+    }
+
+    // One-time depth milestone rewards (gold + gems).
+    private func checkMilestones() {
+        for m in DDMWorld.milestones where save.maxDepth >= m {
+            if save.claimedMilestones.contains(m) { continue }
+            save.claimedMilestones.append(m)
+            let r = DDMWorld.milestoneReward(m)
+            addGold(r.gold * yieldMultiplier)
+            save.gems += r.gems
+        }
     }
 
     // MARK: - Selling
@@ -302,10 +405,14 @@ final class DDMStore: ObservableObject {
 
     // MARK: - Prestige (Collapse)
 
-    // Gems earned from a collapse, based on run depth + lifetime ore sold.
+    // Gems earned from a collapse, based on THIS run's progress:
+    //   depth reached this run + the *delta* of ore sold since the last collapse.
+    // Repeated collapse with no new progress yields ~0 (kills the old exploit where
+    // lifetimeOreSold kept paying out forever).
     var pendingGems: Int {
-        let depthPart = pow(Double(save.runMaxDepth) / 50.0, 1.5)
-        let orePart = pow(max(0, save.lifetimeOreSold) / 1.0e5, 0.55)
+        let depthPart = pow(Double(max(0, save.runMaxDepth)) / 40.0, 1.45)
+        let newOre = max(0, save.lifetimeOreSold - save.oreSoldClaimed)
+        let orePart = pow(newOre / 2.0e4, 0.55)
         let raw = depthPart + orePart
         if !raw.isFinite || raw < 0 { return 0 }
         let g = Int(raw)
@@ -321,9 +428,11 @@ final class DDMStore: ObservableObject {
         guard gained > 0 else { return }
         save.gems += gained
         save.totalCollapses += 1
+        // Bank the ore-sold counter so re-collapse without new sales gives ~0 gems.
+        save.oreSoldClaimed = save.lifetimeOreSold
 
         // Reset run state but keep gems, globals, achievements, lifetime totals.
-        let startDepth = globalLevel(.startDepth) * 10
+        let startDepth = globalLevel(.startDepth) * 15
         save.depth = startDepth
         save.runMaxDepth = startDepth
         if startDepth > save.maxDepth { save.maxDepth = startDepth }
@@ -382,9 +491,10 @@ final class DDMStore: ObservableObject {
                     // clear silently (no floating hit)
                     awardBlockContents(block)
                     let advance = 1 + elevatorBonus
-                    save.depth += advance
+                    save.depth = nextDepth(from: save.depth, desiredAdvance: advance)
                     if save.depth > save.runMaxDepth { save.runMaxDepth = save.depth }
                     if save.depth > save.maxDepth { save.maxDepth = save.depth }
+                    checkMilestones()
                     rebuildCurrentBlock()
                 } else {
                     block.hp -= remaining
@@ -406,6 +516,7 @@ final class DDMStore: ObservableObject {
         if let ore = block.oreType, block.oreAmount > 0 {
             mineOre(ore, amount: block.oreAmount)
         }
+        awardBonus(block)
     }
 
     private func autoSellStep(_ dt: Double) {
