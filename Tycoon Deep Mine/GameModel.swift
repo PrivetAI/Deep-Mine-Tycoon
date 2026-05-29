@@ -47,22 +47,22 @@ enum DDMOre: Int, CaseIterable, Codable {
     // single new ore tier no longer trivially funds every upgrade.
     var baseValue: Double {
         switch self {
-        case .coal: return 2
-        case .copper: return 9
-        case .tin: return 42
-        case .iron: return 200
-        case .silver: return 950
-        case .gold: return 4_400
-        case .ruby: return 20_000
-        case .emerald: return 92_000
-        case .sapphire: return 420_000
-        case .diamond: return 1_900_000
-        case .mithril: return 8_600_000
-        case .obsidian: return 39_000_000
-        case .adamantite: return 175_000_000
-        case .voidstone: return 800_000_000
-        case .starmetal: return 3_600_000_000
-        case .aetherium: return 16_000_000_000
+        case .coal: return 1
+        case .copper: return 4
+        case .tin: return 11
+        case .iron: return 28
+        case .silver: return 72
+        case .gold: return 180
+        case .ruby: return 460
+        case .emerald: return 1_200
+        case .sapphire: return 3_100
+        case .diamond: return 8_000
+        case .mithril: return 21_000
+        case .obsidian: return 55_000
+        case .adamantite: return 143_000
+        case .voidstone: return 372_000
+        case .starmetal: return 970_000
+        case .aetherium: return 2_500_000
         }
     }
 
@@ -266,25 +266,25 @@ struct DDMUpgradeDef: Identifiable {
     static let all: [DDMUpgradeDef] = [
         DDMUpgradeDef(kind: .pickaxe, title: "Pickaxe Power",
                       blurb: "+ Tap damage. Doubles every 35 levels.",
-                      baseCost: 25, costGrowth: 1.34, maxLevel: 9999),
+                      baseCost: 40, costGrowth: 1.38, maxLevel: 9999),
         DDMUpgradeDef(kind: .drillCount, title: "Drill Rig",
                       blurb: "Adds an auto-drill. Doubles output every 35.",
-                      baseCost: 150, costGrowth: 1.40, maxLevel: 9999),
+                      baseCost: 220, costGrowth: 1.42, maxLevel: 9999),
         DDMUpgradeDef(kind: .drillSpeed, title: "Drill Tuning",
                       blurb: "Speeds up drills. Doubles every 35 levels.",
-                      baseCost: 600, costGrowth: 1.42, maxLevel: 9999),
+                      baseCost: 900, costGrowth: 1.44, maxLevel: 9999),
         DDMUpgradeDef(kind: .oreValue, title: "Ore Grader",
                       blurb: "Sorts ore better — raises sell value.",
-                      baseCost: 1_000, costGrowth: 1.45, maxLevel: 9999),
+                      baseCost: 2_000, costGrowth: 1.47, maxLevel: 9999),
         DDMUpgradeDef(kind: .cart, title: "Mine Cart",
                       blurb: "Auto-collects and auto-sells mined ore.",
-                      baseCost: 500, costGrowth: 1.43, maxLevel: 9999),
+                      baseCost: 800, costGrowth: 1.45, maxLevel: 9999),
         DDMUpgradeDef(kind: .elevator, title: "Elevator",
                       blurb: "Eases descent — small depth bonus per block.",
                       baseCost: 3_500, costGrowth: 1.52, maxLevel: 200),
         DDMUpgradeDef(kind: .refiner, title: "Refiner",
                       blurb: "Refines each sale for extra gold.",
-                      baseCost: 1_800, costGrowth: 1.44, maxLevel: 9999),
+                      baseCost: 3_000, costGrowth: 1.46, maxLevel: 9999),
         DDMUpgradeDef(kind: .dynamite, title: "Dynamite Charge",
                       blurb: "Big bonus tap damage vs bedrock & bosses.",
                       baseCost: 4_000, costGrowth: 1.46, maxLevel: 9999),
@@ -562,7 +562,7 @@ enum DDMWorld {
         let topIndex = (unlocked.last?.rawValue ?? 0)
 
         // ore chance rises slightly with depth band
-        let oreChance = 0.40 + min(0.25, Double(depth) * 0.00005)
+        let oreChance = 0.35 + min(0.20, Double(depth) * 0.00004)
         var oreType: DDMOre? = nil
         var oreAmount: Double = 0
 
@@ -571,12 +571,12 @@ enum DDMWorld {
             let lowest = max(0, topIndex - 3)
             let pick = rng.nextInt(lowest, topIndex)
             oreType = DDMOre(rawValue: pick)
-            let baseAmt = Double(rng.nextInt(3, 8))
-            oreAmount = ((baseAmt + Double(depth) * 0.02) * zone.oreMult).rounded()
+            let baseAmt = Double(rng.nextInt(1, 4))
+            oreAmount = ((baseAmt + Double(depth) * 0.01) * zone.oreMult).rounded()
             if oreAmount < 1 { oreAmount = 1 }
         }
 
-        let rubble = ((2.0 + Double(depth) * 0.12) * zone.goldMult).rounded()
+        let rubble = ((1.0 + Double(depth) * 0.04) * zone.goldMult).rounded()
 
         // Boss gate?
         if DDMZone.isBossDepth(depth) {
