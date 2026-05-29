@@ -570,13 +570,37 @@ final class DDMStore: ObservableObject {
         let oreBefore = save.oreMinedTotals
         let depthBefore = save.depth
 
-        var simulated = 0.0
-        let stepSize = max(0.5, capped / 4000.0)
-        var iter = 0
-        while simulated < capped && iter < 5000 {
-            autoStep(min(stepSize, capped - simulated))
-            simulated += stepSize
-            iter += 1
+        // Bounded offline simulation. Clear blocks until the time budget is spent OR a
+        // hard work cap is hit, then credit any remaining time as a closed-form gold
+        // estimate. This guarantees init NEVER freezes, no matter how high DPS is — the
+        // old per-step loop could grind millions of clears (weak blocks x multiplicative
+        // DPS) on the main thread at launch and trip the watchdog (black-screen launch).
+        var timeLeft = capped
+        var clears = 0
+        let maxClears = 20_000
+        while timeLeft > 0 && clears < maxClears {
+            let hp = max(1.0, currentBlock.hp)
+            let timeToClear = hp / dps
+            if !timeToClear.isFinite || timeToClear > timeLeft {
+                var b = currentBlock
+                b.hp = max(0, b.hp - dps * timeLeft)
+                currentBlock = b
+                save.currentBlockHP = b.hp
+                break
+            }
+            timeLeft -= timeToClear
+            awardBlockContents(currentBlock)
+            save.depth = nextDepth(from: save.depth, desiredAdvance: 1 + elevatorBonus)
+            if save.depth > save.runMaxDepth { save.runMaxDepth = save.depth }
+            if save.depth > save.maxDepth { save.maxDepth = save.depth }
+            checkMilestones()
+            rebuildCurrentBlock()
+            clears += 1
+        }
+        // Hit the work cap with time to spare → credit the remainder as a flat estimate.
+        if timeLeft > 0 && clears >= maxClears && hasAutoSell {
+            let est = goldPerSecond * timeLeft
+            if est.isFinite && est > 0 { addGold(est) }
         }
         // Auto-sell remaining if cart present (so offline gold reflects sales)
         if hasAutoSell {
