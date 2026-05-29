@@ -533,13 +533,14 @@ enum DDMWorld {
     }
 
     // HP of a block at a given depth.
-    // Very gentle exponential (+0.35%/m, HP doubles ~every 198 m) plus a per-zone step
-    // multiplier so depth advances at a STEADY pace relative to achievable DPS.
-    // This is the key fix for the old +4.5%/m wall that outran damage by ~50-100 m.
+    // +1.3%/m (HP doubles ~every 54 m) plus a per-zone step multiplier. Paces descent so
+    // DPS must grow to go deeper — no instant dive into high-value ore (the old +0.35%/m
+    // let huge DPS time-travel to billion-value zones in seconds = "billions in a minute"),
+    // while staying well below the old +4.5%/m wall that hard-stalled progress.
     static func blockHP(depth: Int) -> Double {
         let d = Double(max(0, depth))
         let zone = DDMZone.zone(at: depth)
-        let base = 10.0 * pow(1.0035, d) + d * 1.0 + 10.0
+        let base = 10.0 * pow(1.013, d) + d * 1.0 + 10.0
         var hp = base * zone.hpMult
         if DDMZone.isBossDepth(depth) {
             hp *= 8.0 // bedrock gate — a real speed bump, beatable with burst taps/auto

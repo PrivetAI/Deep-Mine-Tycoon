@@ -882,9 +882,11 @@ final class DDMStore: ObservableObject {
         let dps = autoDPS + autoTapDPS
         if dps > 0 {
             var remaining = dps * dt
-            // apply across possibly multiple block clears
+            // Cap auto-clears per tick. Paces descent (no instant deep-dive into
+            // high-value ore -> no "billions in a minute") AND prevents the old
+            // 5000-clears/tick CPU lag. Overflow DPS beyond the cap is dropped this tick.
             var guardCount = 0
-            while remaining > 0 && guardCount < 5000 {
+            while remaining > 0 && guardCount < 4 {
                 guardCount += 1
                 var block = currentBlock
                 if remaining >= block.hp {
