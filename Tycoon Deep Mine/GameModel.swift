@@ -258,53 +258,53 @@ struct DDMUpgradeDef: Identifiable {
         return c.isFinite ? c.rounded() : Double.greatestFiniteMagnitude
     }
 
-    // Cost curves are deliberately STEEP (growth 1.33–1.55) on top of higher base costs.
-    // With the tempered income (softer gem mult + ×2-every-35 milestones, see Store), the
-    // cost of the next level is always a meaningful multiple of current income, so a fresh
-    // player buys a handful of early levels quickly, then each line stretches from seconds
-    // to minutes — and deep lines require descending / prestiging to afford at all.
-    // Cost ladder: base cost ascends with the upgrade's power (cheap basics ->
-    // pricier multipliers), uniform ~1.5 growth so curves stay proportional.
+    // Proportional cost ladder paired with the multiplicative effect curves in Store.swift:
+    // cost grows ~1.18–1.30 per level, effect grows ~1.06–1.12 per level, so each next
+    // level takes only ~10–15% longer to afford than the previous one — no early-game
+    // "free first 5 levels for nothing" and no late-game exponential wall.
+    // Base costs are tuned so the first auto-sell + first drill are reachable in 3–5 min
+    // of pure tapping; the bigger systems (Multi-Strike, Auto Pick, Pressure Drill) sit
+    // far enough out that they're mid-game investments, not first-minute purchases.
     static let all: [DDMUpgradeDef] = [
         DDMUpgradeDef(kind: .pickaxe, title: "Pickaxe Power",
-                      blurb: "+ Tap damage.",
-                      baseCost: 25, costGrowth: 1.45, maxLevel: 9999),
+                      blurb: "+10% tap damage per level.",
+                      baseCost: 10, costGrowth: 1.18, maxLevel: 9999),
         DDMUpgradeDef(kind: .cart, title: "Mine Cart",
                       blurb: "Auto-collects and auto-sells mined ore.",
-                      baseCost: 150, costGrowth: 1.50, maxLevel: 9999),
+                      baseCost: 50, costGrowth: 1.22, maxLevel: 9999),
         DDMUpgradeDef(kind: .drillCount, title: "Drill Rig",
                       blurb: "Adds an auto-drill that mines for you.",
-                      baseCost: 400, costGrowth: 1.50, maxLevel: 9999),
+                      baseCost: 120, costGrowth: 1.25, maxLevel: 9999),
         DDMUpgradeDef(kind: .drillSpeed, title: "Drill Tuning",
-                      blurb: "Speeds up every drill.",
-                      baseCost: 1_500, costGrowth: 1.50, maxLevel: 9999),
+                      blurb: "+10% drill speed per level.",
+                      baseCost: 400, costGrowth: 1.22, maxLevel: 9999),
         DDMUpgradeDef(kind: .dynamite, title: "Dynamite Charge",
                       blurb: "Bonus tap damage vs bedrock & bosses.",
-                      baseCost: 2_500, costGrowth: 1.50, maxLevel: 9999),
+                      baseCost: 1_500, costGrowth: 1.22, maxLevel: 9999),
         DDMUpgradeDef(kind: .oreValue, title: "Ore Grader",
-                      blurb: "Sorts ore better — raises sell value.",
-                      baseCost: 3_000, costGrowth: 1.50, maxLevel: 9999),
+                      blurb: "+10% ore sell value per level.",
+                      baseCost: 1_500, costGrowth: 1.22, maxLevel: 9999),
         DDMUpgradeDef(kind: .refiner, title: "Refiner",
-                      blurb: "Refines each sale for extra gold.",
-                      baseCost: 5_000, costGrowth: 1.50, maxLevel: 9999),
+                      blurb: "+8% sale gold per level.",
+                      baseCost: 3_500, costGrowth: 1.22, maxLevel: 9999),
         DDMUpgradeDef(kind: .elevator, title: "Elevator",
                       blurb: "Eases descent — small depth bonus per block.",
-                      baseCost: 6_000, costGrowth: 1.50, maxLevel: 200),
+                      baseCost: 8_000, costGrowth: 1.30, maxLevel: 200),
         DDMUpgradeDef(kind: .drillEfficiency, title: "Drill Gearing",
-                      blurb: "Raises auto mining output.",
-                      baseCost: 8_000, costGrowth: 1.50, maxLevel: 9999),
+                      blurb: "+8% auto mining output per level.",
+                      baseCost: 8_000, costGrowth: 1.22, maxLevel: 9999),
         DDMUpgradeDef(kind: .goldFind, title: "Prospect Sense",
-                      blurb: "More gold from rubble & sales.",
-                      baseCost: 10_000, costGrowth: 1.50, maxLevel: 9999),
+                      blurb: "+6% gold from rubble & sales per level.",
+                      baseCost: 15_000, costGrowth: 1.22, maxLevel: 9999),
         DDMUpgradeDef(kind: .multiTap, title: "Multi-Strike",
                       blurb: "Each tap lands +1 extra strike per level.",
-                      baseCost: 15_000, costGrowth: 1.55, maxLevel: 60),
+                      baseCost: 40_000, costGrowth: 1.40, maxLevel: 25),
         DDMUpgradeDef(kind: .autoTapper, title: "Auto Pick",
                       blurb: "A mechanical arm auto-taps for you.",
-                      baseCost: 20_000, costGrowth: 1.50, maxLevel: 200),
+                      baseCost: 60_000, costGrowth: 1.25, maxLevel: 200),
         DDMUpgradeDef(kind: .depthScaling, title: "Pressure Drill",
                       blurb: "All damage rises with current depth.",
-                      baseCost: 30_000, costGrowth: 1.50, maxLevel: 300)
+                      baseCost: 80_000, costGrowth: 1.25, maxLevel: 300)
     ]
 
     static func def(_ kind: DDMUpgradeKind) -> DDMUpgradeDef {
@@ -527,12 +527,13 @@ enum DDMWorld {
                                     7_500, 9_000, 11_000, 14_000]
 
     static func milestoneReward(_ m: Int) -> (gold: Double, gems: Int) {
-        // gold scales with the difficulty of reaching the depth; gems are a small bump.
-        // Modest one-time bonus (NOT income-replacing). Was 50*m^1.9 (depth 250 = 1.8M!),
-        // which dumped millions — especially on a migrated save where every milestone
-        // fired at once. Now a small, slowly-growing pickup.
-        let gold = 8.0 * pow(Double(m), 1.15)
-        let gems = max(1, m / 200)
+        // Milestone rewards are RECOGNITION, not the income source. The old 8 * m^1.15
+        // dumped 650 gold at depth 50 — 65× the first pickaxe — which collapsed the
+        // "tap → afford → buy" pacing into "hit milestone → buy everything". The new
+        // 5 * m^1.10 is large enough to feel like a real reward (~360 at d=50, ~2100
+        // at d=250) without overshadowing the per-block income stream.
+        let gold = 5.0 * pow(Double(m), 1.10)
+        let gems = max(1, m / 250)
         return (gold.rounded(), gems)
     }
 
@@ -577,13 +578,16 @@ enum DDMWorld {
             if oreAmount < 1 { oreAmount = 1 }
         }
 
-        let rubble = ((1.0 + Double(depth) * 0.04) * zone.goldMult).rounded()
+        // Rubble: gentler depth slope (+2%/m, was +4%/m). With the new lower upgrade
+        // costs the old +4%/m drowned the per-block ore income.
+        let rubble = ((1.0 + Double(depth) * 0.02) * zone.goldMult).rounded()
 
         // Boss gate?
         if DDMZone.isBossDepth(depth) {
-            // Boss reward scales with depth; gems give prestige a steady drip.
-            let bossGold = (rubble * 6.0 + 25.0 * pow(Double(max(1, depth)), 1.05)).rounded()
-            let bossGems = max(2, depth / 250 + 2)
+            // Tempered boss reward: was rubble*6 + 25*depth^1.05 — a single deep boss
+            // dumped tens of thousands. Now rubble*4 + 8*depth^1.05.
+            let bossGold = (rubble * 4.0 + 8.0 * pow(Double(max(1, depth)), 1.05)).rounded()
+            let bossGems = max(2, depth / 300 + 2)
             // a guaranteed burst of the richest unlocked ore
             let richOre = unlocked.last ?? .coal
             let bossOreAmt = (Double(rng.nextInt(20, 40)) * zone.oreMult).rounded()
@@ -600,7 +604,8 @@ enum DDMWorld {
         // store decide extra finds; this flag marks the *guaranteed* base geodes.
         let treasureRoll = rng.nextDouble()
         if depth > 5 && treasureRoll < 0.035 {
-            let tGold = (rubble * 4.0 + 12.0 * pow(Double(max(1, depth)), 1.0)).rounded()
+            // Tempered treasure: was rubble*4 + 12*depth — now rubble*3 + 5*depth.
+            let tGold = (rubble * 3.0 + 5.0 * pow(Double(max(1, depth)), 1.0)).rounded()
             let tGem = rng.chance(0.18) ? 1 : 0
             let richOre = unlocked.last ?? .coal
             let tOreAmt = (Double(rng.nextInt(8, 18)) * zone.oreMult).rounded()

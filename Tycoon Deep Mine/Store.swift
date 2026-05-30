@@ -17,10 +17,15 @@ final class DDMStore: ObservableObject {
     private var lastTick: Date = Date()
     private var saveAccumulator: Double = 0
 
-    // v2: economy was rebalanced incompatibly — start fresh so old saves (overpowered
-    // from the earlier too-cheap builds, with a high maxDepth that dumped every depth
-    // milestone at once) don't trivialise the new curve.
-    private static let saveKey = "ddm.save.v6"
+    // v7: economy rebalanced to a PROPORTIONAL design — every upgrade's per-level effect
+    // is now a constant multiplier (1.06–1.12 per level) instead of an additive (1 + L*x)
+    // term that was then capped by an x2-every-35-levels milestone scale. The old shape
+    // gave huge percentage gains in the first few levels (L0→L1 doubled tap damage) for
+    // trivial cost, then almost nothing for huge cost, with visible "wall" jumps at
+    // milestone boundaries. The new shape pairs cost growth (1.18–1.30) and effect growth
+    // (1.06–1.12) close enough that each level feels like the same value-for-money. Save
+    // is bumped so old v6 saves (built with the disproportional shape) don't carry over.
+    private static let saveKey = "ddm.save.v7"
     private static let achKey = "ddm.achievements.v1"
     private static let settingsKey = "ddm.settings.v1"
 
@@ -47,13 +52,13 @@ final class DDMStore: ObservableObject {
 
     // --- Gem prestige multiplier (the core of the loop) ---
     // Gems give a global multiplier to BOTH damage and gold so each collapse makes
-    // re-descent faster. TEMPERED vs the old curve (was 1 + g^0.85*0.55) so income no
-    // longer outruns the steeper cost curves: 1 + g^0.78 * 0.42 — still always meaningful,
-    // but a single early collapse won't trivialise the next run's upgrades.
+    // re-descent faster. Tempered for the new proportional curve (the upgrade lines
+    // themselves grow multiplicatively now, so the prestige multiplier doesn't need to
+    // be huge to stay meaningful): 1 + g^0.72 * 0.22.
     var gemMultiplier: Double {
         let g = Double(max(0, save.gems))
         if g <= 0 { return 1.0 }
-        let m = 1.0 + pow(g, 0.78) * 0.30
+        let m = 1.0 + pow(g, 0.72) * 0.22
         return m.isFinite ? m : 1.0
     }
 
@@ -72,24 +77,19 @@ final class DDMStore: ObservableObject {
         return m.isFinite ? m : 1.0
     }
 
-    // Multiplicative "milestone" bonus: x2 every 35 levels (was 25 — slower so the
-    // doubling can't snowball past the cost curve).
-    private func milestoneScale(_ level: Int) -> Double {
-        let steps = level / 35
-        return pow(2.0, Double(steps))
-    }
-
     // Number of strikes a single tap delivers (Multi-Strike).
     var tapStrikes: Int {
         1 + upgradeLevel(.multiTap)
     }
 
-    // Per-strike tap (pickaxe) damage. Base per-level term * x2-every-35 * damage mult.
-    // Slightly softer per-level slope than before (was +2/level) to match steeper costs.
+    // Per-strike tap (pickaxe) damage. Multiplicative per-level: each pickaxe level
+    // multiplies tap damage by 1.10. (Was linear 1 + L*1.0 + an x2-every-35 milestone —
+    // that shape doubled tap damage at L0→L1 for 25 gold, then added only +3% at L30→L31
+    // for 25× the cost, with abrupt 2× discontinuities at every multiple of 35. Constant
+    // multiplier keeps every level the same proportional gain and removes the jumps.)
     var tapDamage: Double {
         let lvl = upgradeLevel(.pickaxe)
-        let base = 1.0 + Double(lvl) * 1.0
-        let d = base * milestoneScale(lvl) * damageMultiplier
+        let d = pow(1.10, Double(lvl)) * damageMultiplier
         return d.isFinite ? max(1, d) : 1
     }
 
@@ -101,23 +101,28 @@ final class DDMStore: ObservableObject {
     }
 
     // Bonus tap damage applied on top vs boss/bedrock blocks (dynamite charge).
+    // Multiplicative per-level (base 8, ×1.12 per extra level).
     var burstBonusDamage: Double {
         let lvl = upgradeLevel(.dynamite)
         if lvl <= 0 { return 0 }
-        let base = Double(lvl) * 8.0
-        let d = base * milestoneScale(lvl) * damageMultiplier
+        let base = 8.0 * pow(1.12, Double(lvl - 1))
+        let d = base * damageMultiplier
         return d.isFinite ? max(0, d) : 0
     }
 
-    // Auto drill damage per second. Drill count & speed each carry x2-every-35 milestones.
+    // Auto drill damage per second. drillCount is the additive axis (each level adds
+    // 1 drill). Per-drill output is a fixed 4.0 (was 3.0 with an x2-every-35 milestone
+    // jump that broke proportionality). drillSpeed and drillEfficiency are constant
+    // multipliers per level (×1.10 and ×1.08), so cost and impact scale together along
+    // the whole ladder.
     var autoDPS: Double {
         let countLvl = upgradeLevel(.drillCount)
         let count = Double(countLvl) + Double(globalLevel(.autoStart)) * 2.0
         if count <= 0 { return 0 }
         let speedLvl = upgradeLevel(.drillSpeed)
-        let perDrill = 3.0 * milestoneScale(countLvl)
-        let speed = (1.0 + Double(speedLvl) * 0.35) * milestoneScale(speedLvl)
-        let gearing = 1.0 + Double(upgradeLevel(.drillEfficiency)) * 0.15
+        let perDrill = 4.0
+        let speed = pow(1.10, Double(speedLvl))
+        let gearing = pow(1.08, Double(upgradeLevel(.drillEfficiency)))
         let turbo = 1.0 + Double(techLevel(.turboDrills)) * 0.08
         let dps = count * perDrill * speed * gearing * turbo * damageMultiplier
         return dps.isFinite ? max(0, dps) : 0
@@ -138,33 +143,40 @@ final class DDMStore: ObservableObject {
     }
 
     // Depth-scaling damage multiplier (Pressure Drill): +X% per level scaled by depth band.
+    // Multiplicative per-level on a depth-derived base — keeps it proportional, no longer
+    // dependent on a linear sum that fell off at high L.
     var depthDamageMultiplier: Double {
         let lvl = upgradeLevel(.depthScaling)
         if lvl <= 0 { return 1.0 }
-        // each level grants +0.6% per 100 m of current depth (capped to keep finite).
         let depthBands = min(200.0, Double(max(0, save.depth)) / 100.0)
-        let m = 1.0 + Double(lvl) * 0.006 * depthBands
+        let perLevel = 1.0 + 0.005 * depthBands  // +0.5% per 100 m of depth, compounded over levels
+        let m = pow(perLevel, Double(lvl))
         return m.isFinite ? max(1.0, m) : 1.0
     }
 
-    // Gold-find bonus (Prospect Sense + meta).
+    // Gold-find bonus (Prospect Sense + meta). Multiplicative per upgrade level (1.06);
+    // meta-tree contribution stays additive (it's a separate pacing layer).
     var goldFindMultiplier: Double {
-        let m = 1.0 + Double(upgradeLevel(.goldFind)) * 0.08 + Double(metaLevel(.goldVein)) * 0.10
+        let prospect = pow(1.06, Double(upgradeLevel(.goldFind)))
+        let meta = 1.0 + Double(metaLevel(.goldVein)) * 0.10
+        let m = prospect * meta
         return m.isFinite ? max(1.0, m) : 1.0
     }
 
-    // Ore sell value multiplier (raw ore). Softer grader step (was 0.25) to match costs.
+    // Ore sell value multiplier (raw ore). Multiplicative grader (1.10/L) and refiner
+    // (1.08/L) — was linear (1 + L*0.18) and (1 + L*0.15), which gave the same
+    // disproportional curve: huge early bumps, flat at high L.
     var oreValueMultiplier: Double {
-        let grader = 1.0 + Double(upgradeLevel(.oreValue)) * 0.18
-        let refiner = 1.0 + Double(upgradeLevel(.refiner)) * 0.15
+        let grader = pow(1.10, Double(upgradeLevel(.oreValue)))
+        let refiner = pow(1.08, Double(upgradeLevel(.refiner)))
         let m = grader * refiner * yieldMultiplier * goldFindMultiplier
         return m.isFinite ? m : 1.0
     }
 
-    // Per-ore mastery value multiplier for a specific ore.
+    // Per-ore mastery value multiplier for a specific ore. Multiplicative 1.06 per level.
     func oreMasteryMultiplier(_ ore: DDMOre) -> Double {
         let lvl = save.oreMastery[ore.rawValue] ?? 0
-        let m = 1.0 + Double(lvl) * 0.10
+        let m = pow(1.06, Double(lvl))
         return m.isFinite ? max(1.0, m) : 1.0
     }
 
