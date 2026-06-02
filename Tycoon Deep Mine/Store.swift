@@ -17,16 +17,16 @@ final class DDMStore: ObservableObject {
     private var lastTick: Date = Date()
     private var saveAccumulator: Double = 0
 
-    // v9: COOKIE CLICKER shape. Builds 7–14 kept all upgrade effects multiplicative
-    // (pow(rate, L)), which stacked uncontrollably the moment ore-tier or zone-mult
-    // surges hit — even at 1.40 cost growth the player felt "exponential" because
-    // grader×refiner×goldFind×mastery×gemMult×zoneMult all compounded. v9 reverts to
-    // a fully ADDITIVE model: every upgrade contributes a small flat increment
-    // (1 + L*x). Combined with a gentle 1.20 cost ladder, ×2.0 ore-tier ratio and
-    // ×1.3 zone goldMult ratio, income grows slowly and predictably — no surges, no
-    // snowball. The trade-off: numbers stay modest. Late game scales through level
-    // count + the (small) gem-prestige multiplier, not through stacked exponents.
-    private static let saveKey = "ddm.save.v9"
+    // v10: ADDITIVE-COMBINING. v9 claimed "Cookie Clicker additive" but still computed
+    // each composite multiplier as a PRODUCT of "additive" sub-multipliers (grader ×
+    // refiner × yieldMultiplier × goldFindMultiplier). Even with each line as 1+L*0.x,
+    // four products of those at L20 each = ×15, at L100 each = ×1080 — exponential in
+    // the SUM of levels, hidden inside an "additive" interface. v10 collapses every
+    // composite to a single bonus sum and applies it as (1 + sum) once. Per-level
+    // contributions add LINEARLY across systems, no stacked exponents anywhere.
+    // Pickaxe base raised to 5 (was 1) with slope 0.5/L (was 1.0/L) so the first level
+    // is +10% instead of +100% — "after a couple of upgrades" no longer doubles tap.
+    private static let saveKey = "ddm.save.v10"
     private static let achKey = "ddm.achievements.v1"
     private static let settingsKey = "ddm.settings.v1"
 
@@ -51,42 +51,54 @@ final class DDMStore: ObservableObject {
         save.globals[kind.rawValue] ?? 0
     }
 
-    // --- Gem prestige multiplier (Cookie Clicker style) ---
-    // With additive upgrade lines, prestige is the ONLY long-arc multiplicative source,
-    // but it stays gentle: 1 + g * 0.02 (each gem is a flat +2%). Linear in g so it's
-    // predictable — no power curves that could re-introduce explosive scaling.
-    var gemMultiplier: Double {
-        let g = Double(max(0, save.gems))
-        if g <= 0 { return 1.0 }
-        let m = 1.0 + g * 0.02
-        return m.isFinite ? m : 1.0
+    // --- v10: SINGLE BONUS SUMS ---
+    // All "amplifier" upgrades contribute their per-level bonus to ONE sum per system
+    // (gold side / damage side). Final multiplier is (1 + sum). Linear in total level
+    // count, not exponential in product-of-multipliers.
+
+    /// Sum of all gold-side per-level bonuses (applied as (1 + goldBonusSum) on gold income).
+    /// Per-ore mastery is added inline in oreUnitValue(_:) since it's per-ore-type.
+    var goldBonusSum: Double {
+        Double(upgradeLevel(.oreValue))     * 0.08 +
+        Double(upgradeLevel(.refiner))      * 0.04 +
+        Double(upgradeLevel(.goldFind))     * 0.03 +
+        Double(globalLevel(.yieldBoost))    * 0.10 +
+        Double(metaLevel(.goldVein))        * 0.10 +
+        Double(techLevel(.assayers))        * 0.06 +
+        Double(max(0, save.gems))           * 0.02
     }
 
-    // Permanent yield multiplier from gems + global yield boost + meta/research mults
-    // (applies to GOLD).
-    var yieldMultiplier: Double {
-        let boost = 1.0 + Double(globalLevel(.yieldBoost)) * 0.12  // +12% per level
-        let m = gemMultiplier * boost * metaGoldMultiplier * researchGoldMultiplier
-        return m.isFinite ? m : 1.0
+    /// Sum of all damage-side per-level bonuses (applied as (1 + damageBonusSum) on tap & auto).
+    /// Depth-scaling contributes proportionally to current depth (capped at 200 depth-bands).
+    var damageBonusSum: Double {
+        let depthBands = min(200.0, Double(max(0, save.depth)) / 100.0)
+        let depthContrib = Double(upgradeLevel(.depthScaling)) * 0.005 * depthBands
+        return Double(globalLevel(.yieldBoost))    * 0.10 +
+               Double(metaLevel(.forceCore))       * 0.10 +
+               Double(techLevel(.sharpTools))      * 0.06 +
+               Double(max(0, save.gems))           * 0.02 +
+               depthContrib
     }
 
-    // Damage multiplier from gems + yield boost + meta/research mults (tap & auto).
-    var damageMultiplier: Double {
-        let boost = 1.0 + Double(globalLevel(.yieldBoost)) * 0.12
-        let m = gemMultiplier * boost * metaDamageMultiplier * researchDamageMultiplier * depthDamageMultiplier
-        return m.isFinite ? m : 1.0
-    }
+    // --- Compatibility shims for existing call sites ---
+    // These properties used to be the multiplicative chains; now they return the
+    // sum-based equivalent so HUD / preview code keeps compiling and showing a useful
+    // number. Internal call sites have been updated to use the sums directly.
+    var gemMultiplier: Double { 1.0 + Double(max(0, save.gems)) * 0.02 }
+    var yieldMultiplier: Double { 1.0 + goldBonusSum }
+    var damageMultiplier: Double { 1.0 + damageBonusSum }
 
     // Number of strikes a single tap delivers (Multi-Strike).
     var tapStrikes: Int {
         1 + upgradeLevel(.multiTap)
     }
 
-    // Per-strike tap (pickaxe) damage. ADDITIVE: +1 dmg per level. The same fixed
-    // increment every level — no compounding, no surprises.
+    // Per-strike tap (pickaxe) damage. Base 5 + 0.5 per level — high enough base that
+    // L0→L1 is only +10% (was +100% with base 1 + L*1). Damage bonus sum applied once.
     var tapDamage: Double {
         let lvl = upgradeLevel(.pickaxe)
-        let d = (1.0 + Double(lvl) * 1.0) * damageMultiplier
+        let base = 5.0 + Double(lvl) * 0.5
+        let d = base * (1.0 + damageBonusSum)
         return d.isFinite ? max(1, d) : 1
     }
 
@@ -97,33 +109,27 @@ final class DDMStore: ObservableObject {
         return d.isFinite ? max(1, d) : 1
     }
 
-    // Bonus tap damage applied on top vs boss/bedrock blocks (dynamite charge).
-    // ADDITIVE: +4 dmg per level.
+    // Bonus tap damage vs boss/bedrock blocks (dynamite charge). +4 dmg per level.
     var burstBonusDamage: Double {
         let lvl = upgradeLevel(.dynamite)
         if lvl <= 0 { return 0 }
         let base = Double(lvl) * 4.0
-        let d = base * damageMultiplier
+        let d = base * (1.0 + damageBonusSum)
         return d.isFinite ? max(0, d) : 0
     }
 
-    // Auto drill damage per second. ADDITIVE throughout:
-    //   drillCount: each level = +1 drill (count)
-    //   per-drill base: 1.0 DPS each
-    //   drillSpeed: +5% speed per level (1 + L*0.05)
-    //   drillEfficiency: +5% gearing per level (1 + L*0.05)
-    // Speed and efficiency stack multiplicatively *together* (two distinct levers),
-    // but each is additive in L so neither runs away on its own.
+    // Auto drill damage per second. v10: per-drill contribution is itself an ADDITIVE
+    // SUM (perDrill_base + speed_contrib + gearing_contrib + turbo_contrib) — no more
+    // (speed × gearing × turbo) exponentiation. Damage bonus applied once at the end.
     var autoDPS: Double {
         let countLvl = upgradeLevel(.drillCount)
         let count = Double(countLvl) + Double(globalLevel(.autoStart)) * 2.0
         if count <= 0 { return 0 }
-        let speedLvl = upgradeLevel(.drillSpeed)
-        let perDrill = 1.0
-        let speed = 1.0 + Double(speedLvl) * 0.05
-        let gearing = 1.0 + Double(upgradeLevel(.drillEfficiency)) * 0.05
-        let turbo = 1.0 + Double(techLevel(.turboDrills)) * 0.08
-        let dps = count * perDrill * speed * gearing * turbo * damageMultiplier
+        let perDrill = 1.0 +
+            Double(upgradeLevel(.drillSpeed))      * 0.10 +
+            Double(upgradeLevel(.drillEfficiency)) * 0.08 +
+            Double(techLevel(.turboDrills))        * 0.08
+        let dps = count * perDrill * (1.0 + damageBonusSum)
         return dps.isFinite ? max(0, dps) : 0
     }
 
@@ -141,42 +147,30 @@ final class DDMStore: ObservableObject {
         return d.isFinite ? max(0, d) : 0
     }
 
-    // Depth-scaling damage multiplier (Pressure Drill). ADDITIVE: +0.5% per level per
-    // 100 m of current depth.
+    // The four properties below used to be the multiplicative chains. They now report
+    // the same value the system "would" multiply by (= 1 + relevant slice of goldBonusSum)
+    // so any HUD code that reads them still shows a coherent number. Internal callers
+    // award gold using `(1.0 + goldBonusSum)` directly.
+
     var depthDamageMultiplier: Double {
-        let lvl = upgradeLevel(.depthScaling)
-        if lvl <= 0 { return 1.0 }
         let depthBands = min(200.0, Double(max(0, save.depth)) / 100.0)
-        let m = 1.0 + Double(lvl) * 0.005 * depthBands
-        return m.isFinite ? max(1.0, m) : 1.0
+        return 1.0 + Double(upgradeLevel(.depthScaling)) * 0.005 * depthBands
     }
-
-    // Gold-find bonus (Prospect Sense + meta). ADDITIVE: +3% per level.
     var goldFindMultiplier: Double {
-        let m = 1.0 + Double(upgradeLevel(.goldFind)) * 0.03 + Double(metaLevel(.goldVein)) * 0.10
-        return m.isFinite ? max(1.0, m) : 1.0
+        1.0 + Double(upgradeLevel(.goldFind)) * 0.03 + Double(metaLevel(.goldVein)) * 0.10
     }
-
-    // Ore sell value multiplier (raw ore). ADDITIVE per-level grader (+8%) and
-    // refiner (+4%). They still cross-multiply (two distinct concepts) but neither
-    // line runs away on its own.
-    var oreValueMultiplier: Double {
-        let grader = 1.0 + Double(upgradeLevel(.oreValue)) * 0.08
-        let refiner = 1.0 + Double(upgradeLevel(.refiner)) * 0.04
-        let m = grader * refiner * yieldMultiplier * goldFindMultiplier
-        return m.isFinite ? m : 1.0
-    }
-
-    // Per-ore mastery value multiplier. ADDITIVE: +5% per level.
+    var oreValueMultiplier: Double { 1.0 + goldBonusSum }
     func oreMasteryMultiplier(_ ore: DDMOre) -> Double {
         let lvl = save.oreMastery[ore.rawValue] ?? 0
-        let m = 1.0 + Double(lvl) * 0.05
-        return m.isFinite ? max(1.0, m) : 1.0
+        return 1.0 + Double(lvl) * 0.05
     }
 
-    // Effective per-unit sell value of an ore (raw), including mastery.
+    // Per-unit ore value. Single (1 + goldBonusSum + mastery*0.05) multiplier — no
+    // chains. Per-ore mastery is added inline so each ore type can have its own bonus
+    // without expanding goldBonusSum.
     func oreUnitValue(_ ore: DDMOre) -> Double {
-        let v = ore.baseValue * oreValueMultiplier * oreMasteryMultiplier(ore)
+        let mastery = Double(save.oreMastery[ore.rawValue] ?? 0)
+        let v = ore.baseValue * (1.0 + goldBonusSum + mastery * 0.05)
         return v.isFinite ? max(0, v) : 0
     }
 
@@ -346,7 +340,8 @@ final class DDMStore: ObservableObject {
     }
 
     private func estimatedBlockGold(_ b: DDMBlock) -> Double {
-        var g = b.rubbleGold * yieldMultiplier * goldFindMultiplier
+        let bonus = 1.0 + goldBonusSum
+        var g = b.rubbleGold * bonus
         if let ore = b.oreType {
             g += b.oreAmount * oreUnitValue(ore)
         }
@@ -458,7 +453,7 @@ final class DDMStore: ObservableObject {
     private func awardBonus(_ block: DDMBlock) {
         guard block.kind != .normal else { return }
         if block.bonusGold > 0 {
-            addGold(block.bonusGold * yieldMultiplier)
+            addGold(block.bonusGold * (1.0 + goldBonusSum))
         }
         var gems = block.gemReward
         if block.isTreasure && treasureLuckBonus > 0 {
@@ -489,7 +484,7 @@ final class DDMStore: ObservableObject {
             if save.claimedMilestones.contains(m) { continue }
             save.claimedMilestones.append(m)
             let r = DDMWorld.milestoneReward(m)
-            addGold(r.gold * yieldMultiplier)
+            addGold(r.gold * (1.0 + goldBonusSum))
             save.gems += r.gems
         }
         accrueResearch()
@@ -975,7 +970,7 @@ final class DDMStore: ObservableObject {
     }
 
     private func awardBlockContents(_ block: DDMBlock) {
-        addGold(block.rubbleGold * yieldMultiplier * goldFindMultiplier)
+        addGold(block.rubbleGold * (1.0 + goldBonusSum))
         if let ore = block.oreType, block.oreAmount > 0 {
             mineOre(ore, amount: block.oreAmount)
         }
