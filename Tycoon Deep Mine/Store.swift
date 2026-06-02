@@ -17,16 +17,14 @@ final class DDMStore: ObservableObject {
     private var lastTick: Date = Date()
     private var saveAccumulator: Double = 0
 
-    // v10: ADDITIVE-COMBINING. v9 claimed "Cookie Clicker additive" but still computed
-    // each composite multiplier as a PRODUCT of "additive" sub-multipliers (grader ×
-    // refiner × yieldMultiplier × goldFindMultiplier). Even with each line as 1+L*0.x,
-    // four products of those at L20 each = ×15, at L100 each = ×1080 — exponential in
-    // the SUM of levels, hidden inside an "additive" interface. v10 collapses every
-    // composite to a single bonus sum and applies it as (1 + sum) once. Per-level
-    // contributions add LINEARLY across systems, no stacked exponents anywhere.
-    // Pickaxe base raised to 5 (was 1) with slope 0.5/L (was 1.0/L) so the first level
-    // is +10% instead of +100% — "after a couple of upgrades" no longer doubles tap.
-    private static let saveKey = "ddm.save.v10"
+    // v11: build 16 had the structural additive-combining fix, but the absolute numbers
+    // were still too fast — base tap 5 made early blocks (HP ~22) clear in 5 taps, so
+    // depth advanced ~120 m in 1 min from nothing. v11 cuts everything to genuine Cookie
+    // Clicker pacing: tap base 1 + 0.3/L, drill perDrill base 0.4 + 0.05/L (speed) +
+    // 0.05/L (gearing), HP base raised 10 → 30 with slope 2 → 4. Cost growth nudged
+    // 1.20 → 1.22-1.30. Sim @ 10 taps/sec: 1 min ≈ depth 6, 10 min ≈ depth 52, 1 hr ≈
+    // depth 162. Slow burn.
+    private static let saveKey = "ddm.save.v11"
     private static let achKey = "ddm.achievements.v1"
     private static let settingsKey = "ddm.settings.v1"
 
@@ -93,11 +91,12 @@ final class DDMStore: ObservableObject {
         1 + upgradeLevel(.multiTap)
     }
 
-    // Per-strike tap (pickaxe) damage. Base 5 + 0.5 per level — high enough base that
-    // L0→L1 is only +10% (was +100% with base 1 + L*1). Damage bonus sum applied once.
+    // Per-strike tap (pickaxe) damage. v11: base 1 + 0.3 per level (was 5 + 0.5/L —
+    // too strong, breezed through early depths). At L0 = 1, L10 = 4, L20 = 7. Damage
+    // bonus sum applied once.
     var tapDamage: Double {
         let lvl = upgradeLevel(.pickaxe)
-        let base = 5.0 + Double(lvl) * 0.5
+        let base = 1.0 + Double(lvl) * 0.3
         let d = base * (1.0 + damageBonusSum)
         return d.isFinite ? max(1, d) : 1
     }
@@ -118,17 +117,18 @@ final class DDMStore: ObservableObject {
         return d.isFinite ? max(0, d) : 0
     }
 
-    // Auto drill damage per second. v10: per-drill contribution is itself an ADDITIVE
-    // SUM (perDrill_base + speed_contrib + gearing_contrib + turbo_contrib) — no more
-    // (speed × gearing × turbo) exponentiation. Damage bonus applied once at the end.
+    // Auto drill damage per second. v11: per-drill base lowered from 1.0 to 0.4, and
+    // the speed/gearing per-level contributions trimmed to 0.05 each (was 0.10/0.08).
+    // First drill now adds 0.4 DPS — felt as "this drill helps a bit" rather than
+    // "this drill is the engine". Per-drill is still ADDITIVE (no chains).
     var autoDPS: Double {
         let countLvl = upgradeLevel(.drillCount)
         let count = Double(countLvl) + Double(globalLevel(.autoStart)) * 2.0
         if count <= 0 { return 0 }
-        let perDrill = 1.0 +
-            Double(upgradeLevel(.drillSpeed))      * 0.10 +
-            Double(upgradeLevel(.drillEfficiency)) * 0.08 +
-            Double(techLevel(.turboDrills))        * 0.08
+        let perDrill = 0.4 +
+            Double(upgradeLevel(.drillSpeed))      * 0.05 +
+            Double(upgradeLevel(.drillEfficiency)) * 0.05 +
+            Double(techLevel(.turboDrills))        * 0.05
         let dps = count * perDrill * (1.0 + damageBonusSum)
         return dps.isFinite ? max(0, dps) : 0
     }

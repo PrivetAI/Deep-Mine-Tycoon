@@ -264,50 +264,48 @@ struct DDMUpgradeDef: Identifiable {
         return c.isFinite ? c.rounded() : Double.greatestFiniteMagnitude
     }
 
-    // Cost ladder paired with the ADDITIVE effects in Store.swift. Cost growth is
-    // 1.20 typical (Cookie Clicker territory). Each upgrade gives a fixed flat increment,
-    // so income grows linearly with bought levels. Cost grows geometrically, so each next
-    // level takes ~20% longer to afford — a slow predictable wall, no exponential explosion.
+    // v11 ladder. Cost growth 1.22-1.30. Bases raised on the "first drill" / cart / speed
+    // so they're not bought 30 sec in. Effect blurbs updated to match Store.swift v11.
     static let all: [DDMUpgradeDef] = [
         DDMUpgradeDef(kind: .pickaxe, title: "Pickaxe Power",
-                      blurb: "+1 tap damage per level.",
-                      baseCost: 10, costGrowth: 1.20, maxLevel: 9999),
+                      blurb: "+0.3 tap damage per level.",
+                      baseCost: 15, costGrowth: 1.22, maxLevel: 9999),
         DDMUpgradeDef(kind: .cart, title: "Mine Cart",
                       blurb: "Auto-collects and auto-sells mined ore.",
-                      baseCost: 60, costGrowth: 1.20, maxLevel: 9999),
+                      baseCost: 80, costGrowth: 1.22, maxLevel: 9999),
         DDMUpgradeDef(kind: .drillCount, title: "Drill Rig",
-                      blurb: "Adds an auto-drill (1 DPS each).",
-                      baseCost: 100, costGrowth: 1.20, maxLevel: 9999),
+                      blurb: "Adds an auto-drill (+0.4 DPS each).",
+                      baseCost: 150, costGrowth: 1.22, maxLevel: 9999),
         DDMUpgradeDef(kind: .drillSpeed, title: "Drill Tuning",
-                      blurb: "+5% drill speed per level.",
-                      baseCost: 400, costGrowth: 1.22, maxLevel: 9999),
+                      blurb: "+0.05 DPS per drill per level.",
+                      baseCost: 500, costGrowth: 1.25, maxLevel: 9999),
         DDMUpgradeDef(kind: .dynamite, title: "Dynamite Charge",
                       blurb: "+4 burst damage vs bedrock & bosses per level.",
-                      baseCost: 1_500, costGrowth: 1.22, maxLevel: 9999),
+                      baseCost: 2_000, costGrowth: 1.25, maxLevel: 9999),
         DDMUpgradeDef(kind: .oreValue, title: "Ore Grader",
                       blurb: "+8% ore sell value per level.",
-                      baseCost: 1_000, costGrowth: 1.22, maxLevel: 9999),
+                      baseCost: 1_500, costGrowth: 1.25, maxLevel: 9999),
         DDMUpgradeDef(kind: .refiner, title: "Refiner",
                       blurb: "+4% sale gold per level.",
-                      baseCost: 3_000, costGrowth: 1.22, maxLevel: 9999),
+                      baseCost: 4_000, costGrowth: 1.25, maxLevel: 9999),
         DDMUpgradeDef(kind: .elevator, title: "Elevator",
                       blurb: "Eases descent — small depth bonus per block.",
-                      baseCost: 8_000, costGrowth: 1.25, maxLevel: 200),
+                      baseCost: 10_000, costGrowth: 1.30, maxLevel: 200),
         DDMUpgradeDef(kind: .drillEfficiency, title: "Drill Gearing",
-                      blurb: "+5% auto mining output per level.",
-                      baseCost: 5_000, costGrowth: 1.22, maxLevel: 9999),
+                      blurb: "+0.05 DPS per drill per level.",
+                      baseCost: 6_000, costGrowth: 1.25, maxLevel: 9999),
         DDMUpgradeDef(kind: .goldFind, title: "Prospect Sense",
                       blurb: "+3% gold from rubble & sales per level.",
-                      baseCost: 15_000, costGrowth: 1.25, maxLevel: 9999),
+                      baseCost: 20_000, costGrowth: 1.28, maxLevel: 9999),
         DDMUpgradeDef(kind: .multiTap, title: "Multi-Strike",
                       blurb: "Each tap lands +1 extra strike per level.",
-                      baseCost: 80_000, costGrowth: 1.40, maxLevel: 15),
+                      baseCost: 100_000, costGrowth: 1.45, maxLevel: 15),
         DDMUpgradeDef(kind: .autoTapper, title: "Auto Pick",
                       blurb: "A mechanical arm auto-taps for you.",
-                      baseCost: 100_000, costGrowth: 1.30, maxLevel: 200),
+                      baseCost: 150_000, costGrowth: 1.35, maxLevel: 200),
         DDMUpgradeDef(kind: .depthScaling, title: "Pressure Drill",
                       blurb: "All damage rises with current depth.",
-                      baseCost: 200_000, costGrowth: 1.30, maxLevel: 300)
+                      baseCost: 250_000, costGrowth: 1.35, maxLevel: 300)
     ]
 
     static func def(_ kind: DDMUpgradeKind) -> DDMUpgradeDef {
@@ -538,20 +536,19 @@ enum DDMWorld {
         return (gold.rounded(), gems)
     }
 
-    // HP of a block at a given depth.
-    // +1.3%/m (HP doubles ~every 54 m) plus a per-zone step multiplier. Paces descent so
-    // DPS must grow to go deeper — no instant dive into high-value ore (the old +0.35%/m
-    // let huge DPS time-travel to billion-value zones in seconds = "billions in a minute"),
-    // while staying well below the old +4.5%/m wall that hard-stalled progress.
+    // HP of a block at a given depth. v11: base 30 (was 10) and slope 4 (was 2) so the
+    // very first block has 84 HP instead of 22 — depth doesn't fly past in tap-spam.
+    // Exponential coefficient kept at 1.020 (doubles every ~35 m) so the deep-game wall
+    // is unchanged.
     static func blockHP(depth: Int) -> Double {
         let d = Double(max(0, depth))
         let zone = DDMZone.zone(at: depth)
-        let base = 10.0 * pow(1.020, d) + d * 2.0 + 12.0
+        let base = 30.0 * pow(1.020, d) + d * 4.0 + 50.0
         var hp = base * zone.hpMult
         if DDMZone.isBossDepth(depth) {
-            hp *= 8.0 // bedrock gate — a real speed bump, beatable with burst taps/auto
+            hp *= 8.0
         }
-        return hp.isFinite ? max(10.0, hp) : 10.0
+        return hp.isFinite ? max(30.0, hp) : 30.0
     }
 
     // Generate a block deterministically from depth.
